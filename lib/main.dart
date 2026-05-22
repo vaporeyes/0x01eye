@@ -182,7 +182,7 @@ class _DesktopPaletteScreenState extends State<DesktopPaletteScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                width: 360,
+                width: 332,
                 child: _DesktopControlPanel(
                   currentColor: color,
                   hasPickedColor: _currentColor != null,
@@ -248,9 +248,9 @@ class _DesktopControlPanel extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final previewHeight = (constraints.maxHeight - 326).clamp(
-            142.0,
-            210.0,
+          final previewHeight = (constraints.maxHeight - 416).clamp(
+            116.0,
+            190.0,
           );
 
           return Padding(
@@ -267,17 +267,7 @@ class _DesktopControlPanel extends StatelessWidget {
                     letterSpacing: 0,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Desktop color bench',
-                  style: TextStyle(
-                    color: Color(0xFF536056),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 140),
                   height: previewHeight,
@@ -301,14 +291,10 @@ class _DesktopControlPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  'R ${currentColor.red}   G ${currentColor.green}   B ${currentColor.blue}',
-                  style: const TextStyle(
-                    color: Color(0xFF18231E),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0,
-                  ),
+                _ColorOutputGrid(
+                  color: currentColor,
+                  mode: _OutputGridMode.light,
+                  size: _OutputGridSize.compact,
                 ),
                 const SizedBox(height: 14),
                 FilledButton.icon(
@@ -359,7 +345,7 @@ class _DesktopControlPanel extends StatelessWidget {
   }
 }
 
-class _DesktopSwatchWorkspace extends StatelessWidget {
+class _DesktopSwatchWorkspace extends StatefulWidget {
   const _DesktopSwatchWorkspace({
     required this.swatches,
     required this.colorSets,
@@ -371,61 +357,48 @@ class _DesktopSwatchWorkspace extends StatelessWidget {
   final ValueChanged<SavedSwatch> onSelectSwatch;
 
   @override
+  State<_DesktopSwatchWorkspace> createState() =>
+      _DesktopSwatchWorkspaceState();
+}
+
+class _DesktopSwatchWorkspaceState extends State<_DesktopSwatchWorkspace> {
+  var _activeTab = _WorkspaceTab.swatches;
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          flex: 3,
-          child: _Panel(
-            title: 'Saved Swatches',
-            child: swatches.isEmpty
-                ? const _EmptyState(text: 'Pick a desktop color, then save it.')
-                : GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 164,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.35,
-                        ),
-                    itemCount: swatches.length,
-                    itemBuilder: (context, index) {
-                      final swatch = swatches[index];
-                      return _SwatchTile(
-                        swatch: swatch,
-                        onTap: () => onSelectSwatch(swatch),
-                      );
-                    },
-                  ),
-          ),
+    return _PaletteBoard(
+      activeTab: _activeTab,
+      onTabChanged: (tab) {
+        setState(() {
+          _activeTab = tab;
+        });
+      },
+      child: switch (_activeTab) {
+        _WorkspaceTab.swatches => _SwatchBoard(
+          swatches: widget.swatches,
+          onSelectSwatch: widget.onSelectSwatch,
         ),
-        const SizedBox(height: 18),
-        Expanded(
-          flex: 2,
-          child: _Panel(
-            title: 'Color Sets',
-            child: colorSets.isEmpty
-                ? const _EmptyState(text: 'Save swatches as a named set.')
-                : ListView.separated(
-                    itemCount: colorSets.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _ColorSetTile(colorSet: colorSets[index]);
-                    },
-                  ),
-          ),
+        _WorkspaceTab.palettes => _PaletteTabView(
+          swatches: widget.swatches,
+          colorSets: widget.colorSets,
+          onSelectSwatch: widget.onSelectSwatch,
         ),
-      ],
+      },
     );
   }
 }
 
-class _Panel extends StatelessWidget {
-  const _Panel({required this.title, required this.child});
+enum _WorkspaceTab { swatches, palettes }
 
-  final String title;
+class _PaletteBoard extends StatelessWidget {
+  const _PaletteBoard({
+    required this.activeTab,
+    required this.onTabChanged,
+    required this.child,
+  });
+
+  final _WorkspaceTab activeTab;
+  final ValueChanged<_WorkspaceTab> onTabChanged;
   final Widget child;
 
   @override
@@ -437,22 +410,382 @@ class _Panel extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                _BoardTab(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Colors',
+                  selected: activeTab == _WorkspaceTab.swatches,
+                  onTap: () => onTabChanged(_WorkspaceTab.swatches),
+                ),
+                const SizedBox(width: 6),
+                _BoardTab(
+                  icon: Icons.auto_awesome_mosaic_outlined,
+                  label: 'Palettes',
+                  selected: activeTab == _WorkspaceTab.palettes,
+                  onTap: () => onTabChanged(_WorkspaceTab.palettes),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BoardTab extends StatelessWidget {
+  const _BoardTab({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(5),
+      child: Ink(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFF5F0DF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: selected
+                  ? const Color(0xFF111613)
+                  : const Color(0xFFB8C3B2),
+            ),
+            const SizedBox(width: 6),
             Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFF5F0DF),
-                fontSize: 18,
+              label,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xFF111613)
+                    : const Color(0xFFB8C3B2),
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0,
               ),
             ),
-            const SizedBox(height: 14),
-            Expanded(child: child),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SwatchBoard extends StatelessWidget {
+  const _SwatchBoard({required this.swatches, required this.onSelectSwatch});
+
+  final List<SavedSwatch> swatches;
+  final ValueChanged<SavedSwatch> onSelectSwatch;
+
+  @override
+  Widget build(BuildContext context) {
+    if (swatches.isEmpty) {
+      return const _EmptyState(text: 'Pick a desktop color, then save it.');
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 86,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: swatches.length,
+      itemBuilder: (context, index) {
+        final swatch = swatches[index];
+        return _SwatchTile(swatch: swatch, onTap: () => onSelectSwatch(swatch));
+      },
+    );
+  }
+}
+
+class _PaletteTabView extends StatelessWidget {
+  const _PaletteTabView({
+    required this.swatches,
+    required this.colorSets,
+    required this.onSelectSwatch,
+  });
+
+  final List<SavedSwatch> swatches;
+  final List<ColorSet> colorSets;
+  final ValueChanged<SavedSwatch> onSelectSwatch;
+
+  @override
+  Widget build(BuildContext context) {
+    if (swatches.isEmpty && colorSets.isEmpty) {
+      return const _EmptyState(text: 'Save colors to build a palette.');
+    }
+
+    return ListView(
+      children: [
+        if (swatches.isNotEmpty) ...[
+          const _BoardSectionLabel(text: 'Current colors'),
+          const SizedBox(height: 8),
+          _PaletteSwatchGrid(
+            swatches: swatches,
+            onSelectSwatch: onSelectSwatch,
+          ),
+        ],
+        if (colorSets.isNotEmpty) ...[
+          if (swatches.isNotEmpty) const SizedBox(height: 18),
+          const _BoardSectionLabel(text: 'Saved palettes'),
+          const SizedBox(height: 8),
+          _ColorSetBoard(colorSets: colorSets),
+        ],
+      ],
+    );
+  }
+}
+
+class _BoardSectionLabel extends StatelessWidget {
+  const _BoardSectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFB8C3B2),
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0,
+      ),
+    );
+  }
+}
+
+class _PaletteSwatchGrid extends StatelessWidget {
+  const _PaletteSwatchGrid({
+    required this.swatches,
+    required this.onSelectSwatch,
+  });
+
+  final List<SavedSwatch> swatches;
+  final ValueChanged<SavedSwatch> onSelectSwatch;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 86,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: swatches.length,
+      itemBuilder: (context, index) {
+        final swatch = swatches[index];
+        return _SwatchTile(swatch: swatch, onTap: () => onSelectSwatch(swatch));
+      },
+    );
+  }
+}
+
+class _ColorSetBoard extends StatelessWidget {
+  const _ColorSetBoard({required this.colorSets});
+
+  final List<ColorSet> colorSets;
+
+  @override
+  Widget build(BuildContext context) {
+    if (colorSets.isEmpty) {
+      return const _EmptyState(text: 'Save swatches as a named set.');
+    }
+
+    return ListView.separated(
+      itemCount: colorSets.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        return _ColorSetTile(colorSet: colorSets[index]);
+      },
+    );
+  }
+}
+
+enum _OutputGridMode { light, dark }
+
+enum _OutputGridSize { compact, regular }
+
+class _ColorOutputGrid extends StatelessWidget {
+  const _ColorOutputGrid({
+    required this.color,
+    required this.mode,
+    required this.size,
+  });
+
+  final SampledColor color;
+  final _OutputGridMode mode;
+  final _OutputGridSize size;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = mode == _OutputGridMode.light
+        ? const Color(0xFF536056)
+        : const Color(0xFF9FA891);
+    final valueColor = mode == _OutputGridMode.light
+        ? const Color(0xFF18231E)
+        : const Color(0xFFF5F0DF);
+    final borderColor = mode == _OutputGridMode.light
+        ? const Color(0x337A866D)
+        : const Color(0x33465044);
+    final cellHeight = size == _OutputGridSize.compact ? 46.0 : 50.0;
+    final labelSize = size == _OutputGridSize.compact ? 9.0 : 10.0;
+    final valueSize = size == _OutputGridSize.compact ? 12.0 : 13.0;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _OutputCell(
+                label: 'RGB',
+                value: color.rgbLabel,
+                height: cellHeight,
+                labelColor: labelColor,
+                valueColor: valueColor,
+                borderColor: borderColor,
+                labelSize: labelSize,
+                valueSize: valueSize,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _OutputCell(
+                label: 'HSL',
+                value: color.hslLabel,
+                height: cellHeight,
+                labelColor: labelColor,
+                valueColor: valueColor,
+                borderColor: borderColor,
+                labelSize: labelSize,
+                valueSize: valueSize,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _OutputCell(
+                label: 'HSV',
+                value: color.hsvLabel,
+                height: cellHeight,
+                labelColor: labelColor,
+                valueColor: valueColor,
+                borderColor: borderColor,
+                labelSize: labelSize,
+                valueSize: valueSize,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _OutputCell(
+                label: 'LUM',
+                value: color.luminanceLabel,
+                height: cellHeight,
+                labelColor: labelColor,
+                valueColor: valueColor,
+                borderColor: borderColor,
+                labelSize: labelSize,
+                valueSize: valueSize,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OutputCell extends StatelessWidget {
+  const _OutputCell({
+    required this.label,
+    required this.value,
+    required this.height,
+    required this.labelColor,
+    required this.valueColor,
+    required this.borderColor,
+    required this.labelSize,
+    required this.valueSize,
+  });
+
+  final String label;
+  final String value;
+  final double height;
+  final Color labelColor;
+  final Color valueColor;
+  final Color borderColor;
+  final double labelSize;
+  final double valueSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: labelSize,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: valueSize,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -472,26 +805,32 @@ class _SwatchTile extends StatelessWidget {
         ? const Color(0xFF111613)
         : const Color(0xFFF5F0DF);
 
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Ink(
+      child: DecoratedBox(
         decoration: BoxDecoration(
           color: color.color,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x77F5F0DF)),
+          borderRadius: BorderRadius.circular(6),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Align(
-            alignment: Alignment.bottomLeft,
-            child: Text(
-              color.hex,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0x22000000)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                color.hex,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
               ),
             ),
           ),
@@ -511,11 +850,11 @@ class _ColorSetTile extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFF111613),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF465044)),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF343C35)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -529,9 +868,9 @@ class _ColorSetTile extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             SizedBox(
-              height: 34,
+              height: 38,
               child: Row(
                 children: [
                   for (final swatch in colorSet.swatches.take(12))
@@ -857,16 +1196,10 @@ class _Readout extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'R ${value.red}   G ${value.green}   B ${value.blue}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFB8C3B2),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0,
-                    ),
+                  _ColorOutputGrid(
+                    color: value,
+                    mode: _OutputGridMode.dark,
+                    size: _OutputGridSize.regular,
                   ),
                 ],
               ),

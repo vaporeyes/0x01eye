@@ -32,11 +32,35 @@ class SampledColor {
 
   Color get color => Color.fromRGBO(red, green, blue, 1);
 
+  HSLColor get hsl => HSLColor.fromColor(color);
+
+  HSVColor get hsv => HSVColor.fromColor(color);
+
   String get hex {
     final r = red.toRadixString(16).padLeft(2, '0');
     final g = green.toRadixString(16).padLeft(2, '0');
     final b = blue.toRadixString(16).padLeft(2, '0');
     return '#$r$g$b'.toUpperCase();
+  }
+
+  String get rgbLabel => '$red $green $blue';
+
+  String get hslLabel {
+    final value = hsl;
+    return '${value.hue.round()} ${_percent(value.saturation)} ${_percent(value.lightness)}';
+  }
+
+  String get hsvLabel {
+    final value = hsv;
+    return '${value.hue.round()} ${_percent(value.saturation)} ${_percent(value.value)}';
+  }
+
+  String get luminanceLabel {
+    return _percent(color.computeLuminance());
+  }
+
+  static String _percent(double value) {
+    return '${(value * 100).round()}%';
   }
 }
 

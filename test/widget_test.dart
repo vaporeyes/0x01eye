@@ -13,6 +13,15 @@ void main() {
     expect(sample.hex, '#0A1BFF');
   });
 
+  test('formats derived color outputs', () {
+    const sample = SampledColor(red: 255, green: 0, blue: 0);
+
+    expect(sample.rgbLabel, '255 0 0');
+    expect(sample.hslLabel, '0 100% 50%');
+    expect(sample.hsvLabel, '0 100% 100%');
+    expect(sample.luminanceLabel, '21%');
+  });
+
   test('averages BGRA pixels around the frame center', () {
     const width = 11;
     const height = 11;
