@@ -7,17 +7,22 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
+import 'color_catalog.dart';
 import 'color_sampler.dart';
 import 'color_store.dart';
 import 'color_workspace.dart';
 import 'desktop_color_picker.dart';
 
-void main() {
-  runApp(const EyeInspectorApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final catalog = await ColorCatalog.load();
+  runApp(EyeInspectorApp(catalog: catalog));
 }
 
 class EyeInspectorApp extends StatelessWidget {
-  const EyeInspectorApp({super.key});
+  const EyeInspectorApp({super.key, required this.catalog});
+
+  final ColorCatalog catalog;
 
   @override
   Widget build(BuildContext context) {
@@ -33,14 +38,16 @@ class EyeInspectorApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: Platform.isAndroid || Platform.isIOS
-          ? const CameraInspectorScreen()
-          : const DesktopPaletteScreen(),
+          ? CameraInspectorScreen(catalog: catalog)
+          : DesktopPaletteScreen(catalog: catalog),
     );
   }
 }
 
 class DesktopPaletteScreen extends StatefulWidget {
-  const DesktopPaletteScreen({super.key});
+  const DesktopPaletteScreen({super.key, required this.catalog});
+
+  final ColorCatalog catalog;
 
   @override
   State<DesktopPaletteScreen> createState() => _DesktopPaletteScreenState();
@@ -184,6 +191,7 @@ class _DesktopPaletteScreenState extends State<DesktopPaletteScreen> {
               SizedBox(
                 width: 332,
                 child: _DesktopControlPanel(
+                  catalog: widget.catalog,
                   currentColor: color,
                   hasPickedColor: _currentColor != null,
                   hasSavedSwatches: _swatches.isNotEmpty,
@@ -199,6 +207,7 @@ class _DesktopPaletteScreenState extends State<DesktopPaletteScreen> {
                 child: _DesktopSwatchWorkspace(
                   swatches: _swatches,
                   colorSets: _colorSets,
+                  catalog: widget.catalog,
                   onSelectSwatch: (swatch) {
                     setState(() {
                       _currentColor = swatch.color;
@@ -216,6 +225,7 @@ class _DesktopPaletteScreenState extends State<DesktopPaletteScreen> {
 
 class _DesktopControlPanel extends StatelessWidget {
   const _DesktopControlPanel({
+    required this.catalog,
     required this.currentColor,
     required this.hasPickedColor,
     required this.hasSavedSwatches,
@@ -226,6 +236,7 @@ class _DesktopControlPanel extends StatelessWidget {
     required this.onSaveColorSet,
   });
 
+  final ColorCatalog catalog;
   final SampledColor currentColor;
   final bool hasPickedColor;
   final bool hasSavedSwatches;
@@ -240,6 +251,7 @@ class _DesktopControlPanel extends StatelessWidget {
     final foreground = currentColor.color.computeLuminance() > 0.42
         ? const Color(0xFF111613)
         : const Color(0xFFF5F0DF);
+    final canonicalName = catalog.nearestName(currentColor);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -248,7 +260,7 @@ class _DesktopControlPanel extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final previewHeight = (constraints.maxHeight - 416).clamp(
+          final previewHeight = (constraints.maxHeight - 437).clamp(
             116.0,
             190.0,
           );
@@ -288,6 +300,19 @@ class _DesktopControlPanel extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0,
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  canonicalName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF536056),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -349,11 +374,13 @@ class _DesktopSwatchWorkspace extends StatefulWidget {
   const _DesktopSwatchWorkspace({
     required this.swatches,
     required this.colorSets,
+    required this.catalog,
     required this.onSelectSwatch,
   });
 
   final List<SavedSwatch> swatches;
   final List<ColorSet> colorSets;
+  final ColorCatalog catalog;
   final ValueChanged<SavedSwatch> onSelectSwatch;
 
   @override
@@ -376,11 +403,13 @@ class _DesktopSwatchWorkspaceState extends State<_DesktopSwatchWorkspace> {
       child: switch (_activeTab) {
         _WorkspaceTab.swatches => _SwatchBoard(
           swatches: widget.swatches,
+          catalog: widget.catalog,
           onSelectSwatch: widget.onSelectSwatch,
         ),
         _WorkspaceTab.palettes => _PaletteTabView(
           swatches: widget.swatches,
           colorSets: widget.colorSets,
+          catalog: widget.catalog,
           onSelectSwatch: widget.onSelectSwatch,
         ),
       },
@@ -495,9 +524,14 @@ class _BoardTab extends StatelessWidget {
 }
 
 class _SwatchBoard extends StatelessWidget {
-  const _SwatchBoard({required this.swatches, required this.onSelectSwatch});
+  const _SwatchBoard({
+    required this.swatches,
+    required this.catalog,
+    required this.onSelectSwatch,
+  });
 
   final List<SavedSwatch> swatches;
+  final ColorCatalog catalog;
   final ValueChanged<SavedSwatch> onSelectSwatch;
 
   @override
@@ -516,7 +550,11 @@ class _SwatchBoard extends StatelessWidget {
       itemCount: swatches.length,
       itemBuilder: (context, index) {
         final swatch = swatches[index];
-        return _SwatchTile(swatch: swatch, onTap: () => onSelectSwatch(swatch));
+        return _SwatchTile(
+          swatch: swatch,
+          catalog: catalog,
+          onTap: () => onSelectSwatch(swatch),
+        );
       },
     );
   }
@@ -526,11 +564,13 @@ class _PaletteTabView extends StatelessWidget {
   const _PaletteTabView({
     required this.swatches,
     required this.colorSets,
+    required this.catalog,
     required this.onSelectSwatch,
   });
 
   final List<SavedSwatch> swatches;
   final List<ColorSet> colorSets;
+  final ColorCatalog catalog;
   final ValueChanged<SavedSwatch> onSelectSwatch;
 
   @override
@@ -546,6 +586,7 @@ class _PaletteTabView extends StatelessWidget {
           const SizedBox(height: 8),
           _PaletteSwatchGrid(
             swatches: swatches,
+            catalog: catalog,
             onSelectSwatch: onSelectSwatch,
           ),
         ],
@@ -582,10 +623,12 @@ class _BoardSectionLabel extends StatelessWidget {
 class _PaletteSwatchGrid extends StatelessWidget {
   const _PaletteSwatchGrid({
     required this.swatches,
+    required this.catalog,
     required this.onSelectSwatch,
   });
 
   final List<SavedSwatch> swatches;
+  final ColorCatalog catalog;
   final ValueChanged<SavedSwatch> onSelectSwatch;
 
   @override
@@ -602,7 +645,11 @@ class _PaletteSwatchGrid extends StatelessWidget {
       itemCount: swatches.length,
       itemBuilder: (context, index) {
         final swatch = swatches[index];
-        return _SwatchTile(swatch: swatch, onTap: () => onSelectSwatch(swatch));
+        return _SwatchTile(
+          swatch: swatch,
+          catalog: catalog,
+          onTap: () => onSelectSwatch(swatch),
+        );
       },
     );
   }
@@ -793,14 +840,20 @@ class _OutputCell extends StatelessWidget {
 }
 
 class _SwatchTile extends StatelessWidget {
-  const _SwatchTile({required this.swatch, required this.onTap});
+  const _SwatchTile({
+    required this.swatch,
+    required this.catalog,
+    required this.onTap,
+  });
 
   final SavedSwatch swatch;
+  final ColorCatalog catalog;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = swatch.color;
+    final canonicalName = catalog.nearestName(color);
     final foreground = color.color.computeLuminance() > 0.42
         ? const Color(0xFF111613)
         : const Color(0xFFF5F0DF);
@@ -819,19 +872,34 @@ class _SwatchTile extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Text(
-                color.hex,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  canonicalName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground.withValues(alpha: 0.86),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 3),
+                Text(
+                  color.hex,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -907,7 +975,9 @@ class _EmptyState extends StatelessWidget {
 }
 
 class CameraInspectorScreen extends StatefulWidget {
-  const CameraInspectorScreen({super.key});
+  const CameraInspectorScreen({super.key, required this.catalog});
+
+  final ColorCatalog catalog;
 
   @override
   State<CameraInspectorScreen> createState() => _CameraInspectorScreenState();
@@ -1036,6 +1106,7 @@ class _CameraInspectorScreenState extends State<CameraInspectorScreen>
 
           return _InspectorView(
             controller: controller,
+            catalog: widget.catalog,
             colorNotifier: _colorNotifier,
           );
         },
@@ -1045,9 +1116,14 @@ class _CameraInspectorScreenState extends State<CameraInspectorScreen>
 }
 
 class _InspectorView extends StatelessWidget {
-  const _InspectorView({required this.controller, required this.colorNotifier});
+  const _InspectorView({
+    required this.controller,
+    required this.catalog,
+    required this.colorNotifier,
+  });
 
   final CameraController controller;
+  final ColorCatalog catalog;
   final ValueNotifier<SampledColor?> colorNotifier;
 
   @override
@@ -1065,7 +1141,7 @@ class _InspectorView extends StatelessWidget {
               child: ValueListenableBuilder<SampledColor?>(
                 valueListenable: colorNotifier,
                 builder: (context, sample, child) {
-                  return _Readout(sample: sample);
+                  return _Readout(sample: sample, catalog: catalog);
                 },
               ),
             ),
@@ -1137,13 +1213,15 @@ class _ViewfinderPainter extends CustomPainter {
 }
 
 class _Readout extends StatelessWidget {
-  const _Readout({required this.sample});
+  const _Readout({required this.sample, required this.catalog});
 
   final SampledColor? sample;
+  final ColorCatalog catalog;
 
   @override
   Widget build(BuildContext context) {
     final value = sample ?? SampledColor.black;
+    final canonicalName = catalog.nearestName(value);
     final textColor = value.color.computeLuminance() > 0.42
         ? const Color(0xFF101413)
         : const Color(0xFFF1F4E8);
@@ -1191,6 +1269,18 @@ class _Readout extends StatelessWidget {
                     style: const TextStyle(
                       color: Color(0xFFF1F4E8),
                       fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    canonicalName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFB8C3B2),
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0,
                     ),

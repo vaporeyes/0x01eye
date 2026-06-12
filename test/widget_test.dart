@@ -2,6 +2,7 @@
 // ABOUTME: Covers BGRA and YUV frame layouts used by supported platforms.
 import 'dart:typed_data';
 
+import 'package:eye_inspector/color_catalog.dart';
 import 'package:eye_inspector/color_sampler.dart';
 import 'package:eye_inspector/color_workspace.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,21 @@ void main() {
     expect(sample.hslLabel, '0 100% 50%');
     expect(sample.hsvLabel, '0 100% 100%');
     expect(sample.luminanceLabel, '21%');
+  });
+
+  test('finds nearest canonical color names', () {
+    final catalog = ColorCatalog.fromCsv(
+      'name,hex\nblack,#000000\nred,#ff0000',
+    );
+
+    expect(
+      catalog.nearestName(const SampledColor(red: 250, green: 2, blue: 3)),
+      'red',
+    );
+    expect(
+      catalog.nearestName(const SampledColor(red: 1, green: 2, blue: 3)),
+      'black',
+    );
   });
 
   test('averages BGRA pixels around the frame center', () {
